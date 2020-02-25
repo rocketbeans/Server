@@ -29,9 +29,12 @@ namespace caspar { namespace oal {
 
 void init(core::module_dependencies dependencies)
 {
+    /* -- [fwi] Disabled because of audio corruption / cadence issues with NTSC audio. - needs rewrite.
+
     dependencies.consumer_registry->register_consumer_factory(L"System Audio Consumer", create_consumer);
     dependencies.consumer_registry->register_preconfigured_consumer_factory(L"system-audio",
                                                                             create_preconfigured_consumer);
+    */
 }
 
 }} // namespace caspar::oal
