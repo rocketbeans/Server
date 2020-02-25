@@ -25,9 +25,8 @@ class array final
         : size_(size)
     {
         if (size_ > 0) {
-            auto storage = std::shared_ptr<void>(std::malloc(size), std::free);
+            auto storage = std::shared_ptr<void>(std::calloc(size, 1), std::free);
             ptr_         = reinterpret_cast<T*>(storage.get());
-            std::memset(ptr_, 0, size_);
             storage_ = std::make_shared<boost::any>(std::move(storage));
         }
     }
