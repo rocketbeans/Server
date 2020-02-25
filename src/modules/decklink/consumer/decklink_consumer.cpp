@@ -531,14 +531,18 @@ struct decklink_consumer : public IDeckLinkVideoOutputCallback
         // TODO (refactor) does ScheduleAudioSamples copy data?
 
         audio_container_.push_back(std::move(audio));
+        unsigned int writtenSamples = 0;
 
         if (FAILED(output_->ScheduleAudioSamples(audio_container_.back().data(),
                                                  nb_samples,
                                                  audio_scheduled_,
                                                  format_desc_.audio_sample_rate,
-                                                 nullptr))) {
+                                                 &writtenSamples))) {
             CASPAR_LOG(error) << print() << L" Failed to schedule audio.";
         }
+        
+        if (writtenSamples != (unsigned int)nb_samples)
+            CASPAR_LOG(error) << print() << L" Decklink Consumer wrote " << writtenSamples << " bytes" << "expected " << nb_samples;
 
         audio_scheduled_ += nb_samples;
     }
