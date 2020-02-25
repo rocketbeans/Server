@@ -119,7 +119,7 @@ void setup_console_window()
 
     // Set console title.
     std::wstringstream str;
-    str << "CasparCG Server " << env::version() << L" x64 ";
+    str << "CasparCG Server " << env::version() << L" x64 [" __DATE__ " - " __TIME__ "]";
 #ifdef COMPILE_RELEASE
     str << " Release";
 #elif COMPILE_PROFILE
