@@ -228,6 +228,24 @@ bool intercept_command_line(int argc, char** argv)
     return CefExecuteProcess(main_args, CefRefPtr<CefApp>(new renderer_application(false)), nullptr) >= 0;
 }
 
+cef_log_severity_t str2ceflogseverity(const std::wstring& level) {
+
+    if (level == L"verbose")
+        return LOGSEVERITY_VERBOSE;
+    else if (level == L"debug")
+        return LOGSEVERITY_DEBUG;
+    else if (level == L"info")
+        return LOGSEVERITY_INFO;
+    else if (level == L"warning")
+        return LOGSEVERITY_WARNING;
+    else if (level == L"error")
+        return LOGSEVERITY_ERROR;
+    else if (level == L"fatal")
+        return LOGSEVERITY_FATAL;
+
+    return LOGSEVERITY_DEFAULT;
+}
+
 void init(core::module_dependencies dependencies)
 {
     dependencies.producer_registry->register_producer_factory(L"HTML Producer", html::create_producer);
@@ -253,6 +271,16 @@ void init(core::module_dependencies dependencies)
         settings.no_sandbox                   = true;
         settings.remote_debugging_port        = env::properties().get(L"configuration.html.remote-debugging-port", 0);
         settings.windowless_rendering_enabled = true;
+
+        // CEF Log Settings
+        CefString(&settings.log_file).FromWString(env::properties().get(L"configuration.html.log-file", L"log/cef.log"));
+        settings.log_severity = str2ceflogseverity(env::properties().get(L"configuration.html.log-severity", L"default"));
+
+        // CEF Cache Settings
+        CefString(&settings.cache_path).FromWString(env::properties().get(L"configuration.html.cache-path", L""));
+        settings.persist_session_cookies = env::properties().get(L"configuration.html.persist-session-cookies", false);
+        settings.persist_user_preferences = env::properties().get(L"configuration.html.persist-user-preferences", false);
+
         CefInitialize(main_args, settings, CefRefPtr<CefApp>(new renderer_application(enable_gpu)), nullptr);
     });
     g_cef_executor->begin_invoke([&] { CefRunMessageLoop(); });
