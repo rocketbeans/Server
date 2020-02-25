@@ -25,7 +25,7 @@ class AVProducer
                boost::optional<bool>                loop);
 
     core::draw_frame prev_frame();
-    core::draw_frame next_frame();
+    core::draw_frame next_frame(int nb_samples);
 
     AVProducer& seek(int64_t time);
     int64_t     time() const;

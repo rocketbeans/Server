@@ -103,7 +103,7 @@ struct ffmpeg_producer : public core::frame_producer
 
     core::draw_frame last_frame() override { return producer_->prev_frame(); }
 
-    core::draw_frame receive_impl(int nb_samples) override { return producer_->next_frame(); }
+    core::draw_frame receive_impl(int nb_samples) override { return producer_->next_frame(nb_samples); }
 
     std::uint32_t frame_number() const override
     {

@@ -211,4 +211,71 @@ const spl::shared_ptr<frame_consumer>& frame_consumer::empty()
     return consumer;
 }
 
+
+// This class is used to guarantee that audio cadence is correct. This is important for NTSC audio.
+class cadence_guard : public frame_consumer
+{
+    spl::shared_ptr<frame_consumer> consumer_;
+    std::vector<int>                audio_cadence_;
+    int                             audio_channels_;
+    video_format_desc               format_desc_;
+    boost::circular_buffer<int>     sync_buffer_;
+
+  public:
+    cadence_guard(const spl::shared_ptr<frame_consumer>& consumer)
+        : consumer_(consumer)
+    {
+    }
+
+    virtual void initialize(const video_format_desc& format_desc, int channel_index) override
+    {
+        audio_cadence_  = format_desc.audio_cadence;
+        audio_channels_ = format_desc.audio_channels;
+        sync_buffer_    = boost::circular_buffer<int>(format_desc.audio_cadence.size());
+        format_desc_    = format_desc;
+        consumer_->initialize(format_desc, channel_index);
+    }
+
+    virtual std::future<bool> send(const_frame frame) override
+    {
+        if (audio_cadence_.size() == 1)
+            return consumer_->send(frame);
+
+        std::promise<bool> p;
+        p.set_value(true);
+
+        std::future<bool> result = p.get_future();
+
+        if (boost::range::equal(sync_buffer_, audio_cadence_) &&
+            audio_cadence_.front() * audio_channels_ == static_cast<int>(frame.audio_data().size())) {
+            // Audio sent so far is in sync, now we can send the next chunk.
+
+            result = consumer_->send(frame);
+
+            boost::range::rotate(audio_cadence_, std::begin(audio_cadence_) + 1);
+        } else {
+            // printf("Syncing audio!");
+            CASPAR_LOG(trace) << print() << L" Syncing audio.";
+        }
+        sync_buffer_.push_back(static_cast<int>(frame.audio_data().size() / audio_channels_));
+
+        return std::move(result);
+    }
+
+    virtual core::monitor::state state() const override { return consumer_->state(); }
+
+    virtual std::wstring print() const override { return consumer_->print(); }
+
+    virtual std::wstring name() const override { return consumer_->name(); }
+
+    virtual bool has_synchronization_clock() const override { return consumer_->has_synchronization_clock(); }
+
+    virtual int index() const override { return consumer_->index(); }
+};
+
+spl::shared_ptr<frame_consumer> create_consumer_cadence_guard(const spl::shared_ptr<frame_consumer>& consumer)
+{
+    return spl::make_shared<cadence_guard>(std::move(consumer));
+}
+
 }} // namespace caspar::core

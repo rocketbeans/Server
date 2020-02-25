@@ -64,6 +64,7 @@ struct output::impl
     {
         remove(index);
 
+        consumer = create_consumer_cadence_guard(consumer);
         consumer->initialize(format_desc_, channel_index_);
 
         std::lock_guard<std::mutex> lock(consumers_mutex_);

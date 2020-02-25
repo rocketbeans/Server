@@ -674,7 +674,11 @@ struct AVProducer::Impl
             tbb::parallel_invoke(
                 [&] { tbb::parallel_for_each(decoders_, [&](auto& p) { progress.fetch_or(p.second()); }); },
                 [&] { progress.fetch_or(video_filter_()); },
-                [&] { progress.fetch_or(audio_filter_(audio_cadence[0])); });
+                [&] { auto bRet = audio_filter_(audio_cadence[0]);
+                      progress.fetch_or(bRet);
+                      if(bRet != false)
+                          boost::range::rotate(audio_cadence, std::end(audio_cadence) - 1);
+                    });
 
             if ((!video_filter_.frame && !video_filter_.eof) || (!audio_filter_.frame && !audio_filter_.eof)) {
                 if (!progress) {
@@ -737,8 +741,6 @@ struct AVProducer::Impl
 
             frame_count_ += 1;
             graph_->set_value("buffer", static_cast<double>(buffer_.size()) / static_cast<double>(buffer_capacity_));
-
-            boost::range::rotate(audio_cadence, std::end(audio_cadence) - 1);
         }
     }
 
@@ -770,7 +772,7 @@ struct AVProducer::Impl
         return core::draw_frame::still(frame_);
     }
 
-    core::draw_frame next_frame()
+    core::draw_frame next_frame(int nb_samples)
     {
         CASPAR_SCOPE_EXIT { update_state(); };
 
@@ -789,6 +791,24 @@ struct AVProducer::Impl
         if (latency_ != -1) {
             CASPAR_LOG(debug) << " latency: " << latency_;
             latency_ = -1;
+        }
+
+        // [fwi] sync audio cadence (only if audio present)
+        while (1) {
+            if (!buffer_[0].audio)
+                break;
+
+            if (buffer_[0].audio.get()->nb_samples != nb_samples) {
+                // printf("drop!\n");
+                buffer_.pop_front();
+                buffer_cond_.notify_all();
+            } else {
+                // printf("sync!\n");
+                break;
+            }
+
+            if (buffer_.empty())
+                return core::draw_frame();
         }
 
         frame_          = buffer_[0].frame;
@@ -1024,7 +1044,7 @@ AVProducer::AVProducer(std::shared_ptr<core::frame_factory> frame_factory,
 {
 }
 
-core::draw_frame AVProducer::next_frame() { return impl_->next_frame(); }
+core::draw_frame AVProducer::next_frame(int nb_samples) { return impl_->next_frame(nb_samples); }
 
 core::draw_frame AVProducer::prev_frame() { return impl_->prev_frame(); }
 

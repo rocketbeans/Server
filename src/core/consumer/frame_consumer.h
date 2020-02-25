@@ -88,6 +88,8 @@ class frame_consumer_registry
     frame_consumer_registry& operator=(const frame_consumer_registry&) = delete;
 };
 
+spl::shared_ptr<frame_consumer> create_consumer_cadence_guard(const spl::shared_ptr<frame_consumer>& consumer);
+
 void destroy_consumers_synchronously();
 
 }} // namespace caspar::core
